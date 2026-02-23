@@ -1,0 +1,1238 @@
+[
+    {
+        "id": "8f8f9264ea8b6366",
+        "type": "tab",
+        "label": "TCP",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "520d8c37f5838d8e",
+        "type": "inject",
+        "z": "8f8f9264ea8b6366",
+        "name": "Connection",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "0.1",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 110,
+        "y": 140,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "b3db442deb2c6907",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "main",
+        "func": "let mode = global.get(\"mode\") || \"normal\";\n\n// Read stored control values\nlet flow_base = flow.get(\"flow_baseline\") || 4;\nlet pressure_base = flow.get(\"pressure_baseline\") || 1.5;\nlet restriction = flow.get(\"restriction\") || 0;\nlet noise = flow.get(\"noise\") || 0;\n\n// derive states\nlet leak = mode === \"leak\";\nlet theft = mode === \"theft\";\nlet freeze = mode === \"freeze\";\nlet degrade = mode === \"degradation\";\nlet dropout = mode === \"dropout\";\n\n// Simulate missing data\nif (dropout && Math.random() < 0.2) {\n    return null;\n}\n\n// Gradual degradation\nif (degrade) {\n    restriction += 0.2;\n    if (restriction > 80) restriction = 80;\n    flow.set(\"restriction\", restriction);\n}\n\n// Freeze mode (sensor stuck)\nif (freeze) {\n    msg.payload = flow.get(\"last_payload\");\n    return msg;\n}\n\n// Base physics behavior\nlet flow_val = flow_base * (1 - restriction / 100);\nlet pressure_val = pressure_base + (restriction / 200);\nlet current_val = 0.8 + (restriction / 150);\n\n// Leak behavior\nlet level = flow.get(\"level\") || 75;\nif (leak) level -= 0.05;\nif (level < 0) level = 0;\n\n// Theft behavior\nif (theft) flow_val += 2;\n\n// Add sensor noise\nflow_val += (Math.random() - 0.5) * (noise / 10);\npressure_val += (Math.random() - 0.5) * (noise / 20);\n\n// Save updated tank level\nflow.set(\"level\", level);\n\n// Create payload\nmsg.payload = {\n    timestamp: Date.now(),\n    flow_lpm: flow_val,\n    pressure_bar: pressure_val,\n    current_amp: current_val,\n    tank_level_percent: level\n};\n\n// Store last payload (useful for freeze mode)\nflow.set(\"last_payload\", msg.payload);\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 140,
+        "wires": [
+            [
+                "9dcac769bce03d79",
+                "5ebfef83f22c4665",
+                "c09cfbcb05411a35",
+                "f8115a2f7c93891a",
+                "5bf6edb949090a14"
+            ]
+        ]
+    },
+    {
+        "id": "4db28306b67750f6",
+        "type": "tcp out",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "host": "",
+        "port": "5000",
+        "beserver": "server",
+        "base64": false,
+        "end": false,
+        "tls": "",
+        "x": 460,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "9dcac769bce03d79",
+        "type": "json",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 170,
+        "y": 320,
+        "wires": [
+            [
+                "4db28306b67750f6",
+                "4758b5c36bd17394",
+                "d82481375ef88632",
+                "e7d6c35b37beec4b"
+            ]
+        ]
+    },
+    {
+        "id": "065ca8d553b366cf",
+        "type": "change",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "flow_baseline",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 980,
+        "y": 40,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "bf8c0c637f86e76f",
+        "type": "change",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "pressure_baseline",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1000,
+        "y": 120,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "f6c9c74df2a6c51c",
+        "type": "change",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "restriction",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 970,
+        "y": 200,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "d579a3ef946a5869",
+        "type": "change",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "noise",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 960,
+        "y": 280,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "996062f258042bda",
+        "type": "change",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "leak",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 360,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "67f29f59d82b2c8e",
+        "type": "change",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "theft",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 950,
+        "y": 520,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "345041d8839bf6d6",
+        "type": "change",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "freeze",
+                "pt": "flow",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 960,
+        "y": 440,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "b42cf53989b623b6",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Normal func",
+        "func": "global.set(\"mode\", \"normal\");\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 460,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "5d93df6d32d1889f",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Leak func",
+        "func": "global.set(\"mode\", \"leak\");\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 520,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "43e986c00ea2d18c",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Restriction func",
+        "func": "global.set(\"mode\", \"restriction\");\nflow.set(\"restriction\", 60);\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 580,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "14844173f4209c80",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Theft func",
+        "func": "global.set(\"mode\", \"theft\");\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 420,
+        "y": 640,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "bff5ff9d26165337",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Degradation func",
+        "func": "global.set(\"mode\", \"degradation\");\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 700,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "0f9d8a7e78e85ef6",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Dropout func",
+        "func": "global.set(\"mode\", \"dropout\");\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 760,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "df912f9d9e475603",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Reset func",
+        "func": "global.set(\"mode\", \"normal\");\nglobal.set(\"restriction\", 0);\nglobal.set(\"noise\", 0);\nglobal.set(\"level\", 75);\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 820,
+        "wires": [
+            [
+                "b3db442deb2c6907"
+            ]
+        ]
+    },
+    {
+        "id": "4758b5c36bd17394",
+        "type": "mqtt out",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "topic": "hydraulic/data",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "broker",
+        "x": 480,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "5ebfef83f22c4665",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Flow graph fn",
+        "func": "msg.payload = msg.payload.flow_lpm;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 580,
+        "wires": [
+            [
+                "7237c31adefdbd6c"
+            ]
+        ]
+    },
+    {
+        "id": "c09cfbcb05411a35",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "pressure graph fn",
+        "func": "msg.payload = msg.payload.pressure_bar;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 640,
+        "wires": [
+            [
+                "415b73987a44dd45"
+            ]
+        ]
+    },
+    {
+        "id": "f8115a2f7c93891a",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "Pump Current A fn",
+        "func": "msg.payload = msg.payload.current_amp;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 700,
+        "wires": [
+            [
+                "90f190c232fea2ec"
+            ]
+        ]
+    },
+    {
+        "id": "5bf6edb949090a14",
+        "type": "function",
+        "z": "8f8f9264ea8b6366",
+        "name": "tank guage fn",
+        "func": "msg.payload = msg.payload.tank_level_percent;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 760,
+        "wires": [
+            [
+                "a0fdd9c33f0132d0"
+            ]
+        ]
+    },
+    {
+        "id": "9e8c0f162a7f5c63",
+        "type": "ui_button",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "a80fd8d14de00015",
+        "order": 7,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Normal",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 160,
+        "y": 460,
+        "wires": [
+            [
+                "b42cf53989b623b6"
+            ]
+        ]
+    },
+    {
+        "id": "1bc6dbbdda3eb2a9",
+        "type": "ui_button",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "a80fd8d14de00015",
+        "order": 8,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Leak Mode",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 170,
+        "y": 520,
+        "wires": [
+            [
+                "5d93df6d32d1889f"
+            ]
+        ]
+    },
+    {
+        "id": "980c12221760cfc7",
+        "type": "ui_button",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "a80fd8d14de00015",
+        "order": 8,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Restriction Mode",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 190,
+        "y": 580,
+        "wires": [
+            [
+                "43e986c00ea2d18c"
+            ]
+        ]
+    },
+    {
+        "id": "1bcce24b28bce17d",
+        "type": "ui_button",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "a80fd8d14de00015",
+        "order": 8,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Theft Mode",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 170,
+        "y": 640,
+        "wires": [
+            [
+                "14844173f4209c80"
+            ]
+        ]
+    },
+    {
+        "id": "daa8501af88f4b14",
+        "type": "ui_button",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "a80fd8d14de00015",
+        "order": 11,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Degradation Mode",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 190,
+        "y": 700,
+        "wires": [
+            [
+                "bff5ff9d26165337"
+            ]
+        ]
+    },
+    {
+        "id": "40fe2ab5e479d5b8",
+        "type": "ui_button",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "a80fd8d14de00015",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Dropout",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 160,
+        "y": 760,
+        "wires": [
+            [
+                "0f9d8a7e78e85ef6"
+            ]
+        ]
+    },
+    {
+        "id": "d18b3b2a5a8a112d",
+        "type": "ui_button",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "a80fd8d14de00015",
+        "order": 6,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "label": "Reset",
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 150,
+        "y": 820,
+        "wires": [
+            [
+                "df912f9d9e475603"
+            ]
+        ]
+    },
+    {
+        "id": "7024d4cb45e040a1",
+        "type": "ui_switch",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "label": "Leak",
+        "tooltip": "",
+        "group": "939b0905b9a2e16d",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "topic",
+        "topicType": "msg",
+        "style": "",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "officon": "",
+        "offcolor": "",
+        "animate": false,
+        "className": "",
+        "x": 690,
+        "y": 360,
+        "wires": [
+            [
+                "996062f258042bda"
+            ]
+        ]
+    },
+    {
+        "id": "7eae4e6974edf5e5",
+        "type": "ui_switch",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "label": "Theft",
+        "tooltip": "",
+        "group": "939b0905b9a2e16d",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "topic",
+        "topicType": "msg",
+        "style": "",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "officon": "",
+        "offcolor": "",
+        "animate": false,
+        "className": "",
+        "x": 690,
+        "y": 520,
+        "wires": [
+            [
+                "67f29f59d82b2c8e"
+            ]
+        ]
+    },
+    {
+        "id": "e90d0a21325d214e",
+        "type": "ui_switch",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "label": "Freeze",
+        "tooltip": "",
+        "group": "939b0905b9a2e16d",
+        "order": 6,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "topic",
+        "topicType": "msg",
+        "style": "",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "officon": "",
+        "offcolor": "",
+        "animate": false,
+        "className": "",
+        "x": 700,
+        "y": 440,
+        "wires": [
+            [
+                "345041d8839bf6d6"
+            ]
+        ]
+    },
+    {
+        "id": "e451cd0156c34c51",
+        "type": "ui_slider",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "label": "Flow Baseline",
+        "tooltip": "",
+        "group": "939b0905b9a2e16d",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "outs": "all",
+        "topic": "topic",
+        "topicType": "msg",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "className": "",
+        "x": 720,
+        "y": 40,
+        "wires": [
+            [
+                "065ca8d553b366cf"
+            ]
+        ]
+    },
+    {
+        "id": "685c32d60774048f",
+        "type": "ui_slider",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "label": "Pressure Baseline",
+        "tooltip": "",
+        "group": "939b0905b9a2e16d",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "outs": "all",
+        "topic": "topic",
+        "topicType": "msg",
+        "min": 0,
+        "max": "5",
+        "step": 1,
+        "className": "",
+        "x": 730,
+        "y": 120,
+        "wires": [
+            [
+                "bf8c0c637f86e76f"
+            ]
+        ]
+    },
+    {
+        "id": "c7b96fe91a7478cb",
+        "type": "ui_slider",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "label": "Restriction %",
+        "tooltip": "",
+        "group": "939b0905b9a2e16d",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "outs": "all",
+        "topic": "topic",
+        "topicType": "msg",
+        "min": 0,
+        "max": "100",
+        "step": 1,
+        "className": "",
+        "x": 710,
+        "y": 200,
+        "wires": [
+            [
+                "f6c9c74df2a6c51c"
+            ]
+        ]
+    },
+    {
+        "id": "f2f27eadd965077c",
+        "type": "ui_slider",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "label": "Noise %",
+        "tooltip": "",
+        "group": "939b0905b9a2e16d",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "outs": "all",
+        "topic": "topic",
+        "topicType": "msg",
+        "min": 0,
+        "max": "30",
+        "step": 1,
+        "className": "",
+        "x": 700,
+        "y": 280,
+        "wires": [
+            [
+                "d579a3ef946a5869"
+            ]
+        ]
+    },
+    {
+        "id": "a0fdd9c33f0132d0",
+        "type": "ui_gauge",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "39b2590d1dae9299",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Tank Level %",
+        "label": "units",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 950,
+        "y": 760,
+        "wires": []
+    },
+    {
+        "id": "7237c31adefdbd6c",
+        "type": "ui_chart",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "39b2590d1dae9299",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "label": "Flow (LPM)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "5",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "60",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 950,
+        "y": 580,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "415b73987a44dd45",
+        "type": "ui_chart",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "39b2590d1dae9299",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "label": "Pressure (bar)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 960,
+        "y": 640,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "90f190c232fea2ec",
+        "type": "ui_chart",
+        "z": "8f8f9264ea8b6366",
+        "name": "",
+        "group": "39b2590d1dae9299",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "label": "Pump Current (A)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 970,
+        "y": 700,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d82481375ef88632",
+        "type": "serial out",
+        "z": "8f8f9264ea8b6366",
+        "d": true,
+        "name": "Serial9600",
+        "serial": "17c6235a77d3e545",
+        "x": 470,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "e7d6c35b37beec4b",
+        "type": "serial out",
+        "z": "8f8f9264ea8b6366",
+        "name": "Serial115200",
+        "serial": "c666587db7d4855d",
+        "x": 290,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "33a00c77937afcb5",
+        "type": "ui_spacer",
+        "z": "8f8f9264ea8b6366",
+        "name": "spacer",
+        "group": "39b2590d1dae9299",
+        "order": 3,
+        "width": 1,
+        "height": 1
+    },
+    {
+        "id": "broker",
+        "type": "mqtt-broker",
+        "name": "Local MQTT",
+        "broker": "192.168.1.6",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 15,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "a80fd8d14de00015",
+        "type": "ui_group",
+        "name": "Buttons",
+        "tab": "6a62f2714729d61f",
+        "order": 2,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "939b0905b9a2e16d",
+        "type": "ui_group",
+        "name": "Controls",
+        "tab": "6a62f2714729d61f",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "39b2590d1dae9299",
+        "type": "ui_group",
+        "name": "Monitoring",
+        "tab": "6a62f2714729d61f",
+        "order": 3,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "17c6235a77d3e545",
+        "type": "serial-port",
+        "name": "COM9",
+        "serialport": "COM9",
+        "serialbaud": "9600",
+        "databits": 8,
+        "parity": "none",
+        "stopbits": 1,
+        "waitfor": "",
+        "dtr": "none",
+        "rts": "none",
+        "cts": "none",
+        "dsr": "none",
+        "newline": "\\n",
+        "bin": "false",
+        "out": "char",
+        "addchar": "",
+        "responsetimeout": 10000
+    },
+    {
+        "id": "c666587db7d4855d",
+        "type": "serial-port",
+        "name": "COM10",
+        "serialport": "COM10",
+        "serialbaud": "115200",
+        "databits": 8,
+        "parity": "none",
+        "stopbits": 1,
+        "waitfor": "",
+        "dtr": "none",
+        "rts": "none",
+        "cts": "none",
+        "dsr": "none",
+        "newline": "\\n",
+        "bin": "false",
+        "out": "char",
+        "addchar": "",
+        "responsetimeout": 10000
+    },
+    {
+        "id": "6a62f2714729d61f",
+        "type": "ui_tab",
+        "name": "Digital Twin",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "441ad99bcce5793d",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6",
+            "node-red-node-serialport": "2.0.3"
+        }
+    }
+]
