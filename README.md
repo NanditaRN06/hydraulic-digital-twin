@@ -175,7 +175,7 @@ The simulator uses a physics-inspired model with configurable baselines and inje
 
 ## Authors
 - [Nandita R Nadig](https://github.com/NanditaRN06)
-- [Kritheesh](https://github.com/Kritheesh14)
+- [Kritheesh NV](https://github.com/Kritheesh14)
 
 ## License 
 
